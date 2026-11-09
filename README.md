@@ -88,6 +88,10 @@ curl -X POST http://claude-dial.local/api/ring -H "X-Dial-Token: GEHEIM" -d '{"c
 Weitere Endpunkte: `POST /api/ring/stop` und `POST /api/notify` mit `{"text":"Build fertig","level":"info|warn|call"}`.
 Das Token legst du in der Webkonfiguration fest. Ohne Token darf jeder im Netz klingeln lassen.
 
+## Monitorhalterung (3D-Druck)
+
+In `hardware/halterung/` liegt eine Halterung für die Oberkante eines Lenovo P27h-10 (STEP zum Weiterbearbeiten, STL zum Drucken). Details dort in der README.
+
 ## Projektstruktur
 
 ```
