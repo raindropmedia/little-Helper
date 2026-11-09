@@ -151,6 +151,7 @@ static String queryParam(const String& url, const char* key) {
 // ----------------------------------------------------------- HTTPS
 using Hdr = std::pair<const char*, String>;
 static char s_netErr[40] = "";  // letzte Verbindungs-Fehlerursache
+static uint32_t s_retryAfter = 0;  // Sekunden aus "Retry-After" der letzten 429-Antwort
 
 // Führt eine HTTPS-Anfrage aus. Antwort-JSON (optional gefiltert) landet in out.
 static int https(const char* method, const String& url, const String& body, const char* ctype,
@@ -167,7 +168,10 @@ static int https(const char* method, const String& url, const String& body, cons
   for (const auto& h : headers) http.addHeader(h.first, h.second);
   if (ctype) http.addHeader("Content-Type", ctype);
   if (body.length() == 0 && strcmp(method, "GET") != 0) http.addHeader("Content-Length", "0");
+  static const char* hdrKeys[] = {"Retry-After"};
+  http.collectHeaders(hdrKeys, 1);
   int code = http.sendRequest(method, body);
+  s_retryAfter = code == 429 ? (uint32_t)http.header("Retry-After").toInt() : 0;
   if (code < 0) {  // Ursache merken: TLS-Fehlercode oder Verbindungsproblem
     char buf[64];
     int e = client.lastError(buf, sizeof(buf));
@@ -290,7 +294,11 @@ static void parseWindow(JsonVariantConst w, float& util, time_t& reset) {
   reset = parseIso(w["resets_at"] | "");
 }
 
+// Rate-Limit der Nutzungs-Schnittstelle: Wartezeit nach HTTP 429
+static uint32_t s_clBlockedUntil = 0, s_clBackoffS = 300;
+
 static void claudePoll() {
+  if (s_clBlockedUntil && (int32_t)(millis() - s_clBlockedUntil) < 0) return;  // noch gesperrt
   Settings c = settingsCopy();
   if (!c.claudeAccess.length()) return;
   if (timeValid() && c.claudeExp && nowUtc() > (time_t)c.claudeExp - 120) {
@@ -321,6 +329,24 @@ static void claudePoll() {
     u.extraUsed = ex["used_credits"] | 0.0f;
     u.extraLimit = ex["monthly_limit"] | 0.0f;
     u.updated = nowUtc();
+    s_clBackoffS = 300;
+    s_clBlockedUntil = 0;
+  } else if (rc == 429) {
+    // Server-Vorgabe beachten, sonst exponentiell warten (5 min ... 1 h)
+    uint32_t wait = max(s_retryAfter, s_clBackoffS);
+    s_clBackoffS = min<uint32_t>(s_clBackoffS * 2, 3600);
+    s_clBlockedUntil = millis() + wait * 1000UL;
+    if (!s_clBlockedUntil) s_clBlockedUntil = 1;
+    u.ok = u.updated != 0;
+    if (timeValid()) {
+      time_t next = nowUtc() + wait;
+      struct tm tm;
+      localtime_r(&next, &tm);
+      snprintf(u.err, sizeof(u.err), "Rate-Limit, neu um %02d:%02d", tm.tm_hour, tm.tm_min);
+    } else {
+      snprintf(u.err, sizeof(u.err), "Rate-Limit, warte %lu min", (unsigned long)(wait / 60));
+    }
+    log_w("Claude-Nutzung: 429, warte %lu s", (unsigned long)wait);
   } else {
     u.ok = u.updated != 0;  // alte Werte weiter anzeigen
     if (rc == 403) setStr(u.err, "Scope fehlt (user:profile)");
@@ -848,7 +874,7 @@ static void netTask(void*) {
       }
       return false;
     };
-    if (hasClaude && due(tClaude, f == Focus::Claude ? 45000 : 120000)) claudePoll();
+    if (hasClaude && due(tClaude, f == Focus::Claude ? 180000 : 300000)) claudePoll();
     else if (hasMs && due(tTeams, f == Focus::Teams ? 8000 : 20000)) teamsPoll();
     else if (hasMs && timeValid() && due(tCal, f == Focus::Calendar ? 60000 : 180000)) calendarPoll();
     else if (hasSp && due(tSp, f == Focus::Spotify ? 3000 : 30000)) spotifyPoll();
