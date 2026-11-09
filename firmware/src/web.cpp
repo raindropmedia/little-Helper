@@ -108,7 +108,7 @@ static void handleRoot() {
       h += "<p class=muted>" + esc(st.ms.msg) + "</p>";
     h += F("<form method=post action=/ms><label>Anwendungs-(Client-)ID der App-Registrierung</label><input name=client value='");
     h += esc(c.msClient);
-    h += F("'><label>Tenant (organizations, common oder Tenant-ID)</label><input name=tenant value='");
+    h += F("'><label>Tenant: Mandanten-ID oder Domain (z. B. hs-duesseldorf.de). „organizations“ nur bei mandantenübergreifenden Apps</label><input name=tenant value='");
     h += esc(c.msTenant);
     h += F("'><button>Speichern</button></form><form method=post action=/ms/login><button>Anmelden (Gerätecode)</button></form>"
            "<form method=post action=/ms/logout><button class=sec>Abmelden</button></form>"

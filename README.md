@@ -56,10 +56,17 @@ Der Dial bekommt eine **eigene** Sitzung und erneuert sein Token selbst. Dein Cl
 1. Im [Entra-Portal](https://entra.microsoft.com) unter *App-Registrierungen → Neue Registrierung* eine App anlegen (Konten in diesem Organisationsverzeichnis).
 2. Unter *Authentifizierung* die Option **„Öffentliche Clientflows zulassen“** auf *Ja* stellen.
 3. Unter *API-Berechtigungen* die delegierten Microsoft-Graph-Berechtigungen `Presence.ReadWrite`, `Calendars.Read`, `User.Read` und `offline_access` hinzufügen.
-4. Die *Anwendungs-ID (Client-ID)* in der Webkonfiguration eintragen und **„Anmelden (Gerätecode)“** klicken.
+4. In der Webkonfiguration die *Anwendungs-ID (Client-ID)* und als **Tenant die Verzeichnis-(Mandanten-)ID oder die Domain** (z. B. `hs-duesseldorf.de`) eintragen, dann **„Anmelden (Gerätecode)“** klicken. Mit dem Standardwert `organizations` schlägt die Anmeldung bei Apps „nur dieses Verzeichnis“ fehl (`AADSTS50194`).
 5. Auf dem Dial und auf der Webseite erscheint ein Code. Diesen unter <https://microsoft.com/devicelogin> eingeben.
 
-An Hochschulen und in Firmen kann es sein, dass ein Administrator der App zustimmen muss. Wenn die Registrierung gesperrt ist, an die IT wenden.
+An Hochschulen und in Firmen kann es sein, dass ein Administrator der App zustimmen muss. Wenn die Registrierung gesperrt ist, an die IT wenden. Die IT kann die App auch selbst anlegen und dir nur die Client-ID geben.
+
+| Fehler | Lösung |
+|---|---|
+| `AADSTS50194` | Tenant auf Mandanten-ID/Domain statt `organizations` setzen |
+| `AADSTS7000218` | „Öffentliche Clientflows zulassen“ aktivieren |
+| `AADSTS65001` / `90094` | Administratorzustimmung durch die IT nötig |
+| `AADSTS50105` | App ist auf zugewiesene Nutzer beschränkt, die IT muss dich zuweisen |
 
 ### 5. Spotify (Lautstärke & Wiedergabe)
 
