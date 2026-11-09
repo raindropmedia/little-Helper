@@ -95,12 +95,13 @@ firmware/
   src/state.h              Datenmodell
   data/x509_crt_bundle.bin Root-Zertifikate (Mozilla) für TLS-Prüfung
   tools/gen_crt_bundle.py  erzeugt das Zertifikats-Bundle neu
+  tools/extra_roots/       Roots, die Mozilla entfernt hat, die große Dienste aber noch nutzen
 ```
 
 ## Hinweise
 
 * **Sicherheit:** Alle Verbindungen nach außen laufen über HTTPS mit Zertifikatsprüfung. Die Tokens liegen im Flash des Dials. Die Webkonfiguration läuft im LAN unverschlüsselt über HTTP, deshalb ein Passwort setzen.
-* **Zertifikate erneuern** (selten nötig):
+* **Zertifikate erneuern** (selten nötig). Das Bundle enthält zusätzlich *GlobalSign Root CA* (für `api.anthropic.com`) und *DigiCert Global Root CA* aus `tools/extra_roots/`:
 
   ```bash
   curl -o cacert.pem https://curl.se/ca/cacert.pem

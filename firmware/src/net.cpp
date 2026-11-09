@@ -150,6 +150,7 @@ static String queryParam(const String& url, const char* key) {
 
 // ----------------------------------------------------------- HTTPS
 using Hdr = std::pair<const char*, String>;
+static char s_netErr[40] = "";  // letzte Verbindungs-Fehlerursache
 
 // Führt eine HTTPS-Anfrage aus. Antwort-JSON (optional gefiltert) landet in out.
 static int https(const char* method, const String& url, const String& body, const char* ctype,
@@ -167,6 +168,14 @@ static int https(const char* method, const String& url, const String& body, cons
   if (ctype) http.addHeader("Content-Type", ctype);
   if (body.length() == 0 && strcmp(method, "GET") != 0) http.addHeader("Content-Length", "0");
   int code = http.sendRequest(method, body);
+  if (code < 0) {  // Ursache merken: TLS-Fehlercode oder Verbindungsproblem
+    char buf[64];
+    int e = client.lastError(buf, sizeof(buf));
+    const char* why = e == -0x2700 ? "Zertifikat" : e == -0x7F00 || e == -0x10 ? "kein RAM" : e ? "TLS" : "Verbindung";
+    if (e) snprintf(s_netErr, sizeof(s_netErr), "%s -0x%X", why, -e);
+    else snprintf(s_netErr, sizeof(s_netErr), "%s (%d), RAM %uk", why, code, (unsigned)(ESP.getMaxAllocHeap() / 1024));
+    log_w("%s %s fehlgeschlagen: %s / %s", method, url.c_str(), s_netErr, buf);
+  }
   if (out && code > 0) {
     DeserializationError e = filter ? deserializeJson(*out, http.getStream(), DeserializationOption::Filter(*filter))
                                     : deserializeJson(*out, http.getStream());
@@ -178,7 +187,7 @@ static int https(const char* method, const String& url, const String& body, cons
 }
 
 static void httpErr(char* dst, size_t n, int code) {
-  if (code < 0) snprintf(dst, n, "Netzwerkfehler (%d)", code);
+  if (code < 0) strlcpy(dst, s_netErr, n);
   else snprintf(dst, n, "HTTP %d", code);
 }
 
